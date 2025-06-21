@@ -1,12 +1,12 @@
 console.log('Starting QR Code Generator...');
-const fastify = require('fastify')({ logger: true });
+const fastify = require('fastify')({ 
+  logger: true,
+  trustProxy: true
+});
 console.log('Fastify initialized');
 const QRCode = require('qrcode');
 console.log('QRCode library loaded');
 const path = require('path');
-
-const port = process.env.PORT || 8080;
-console.log(`Port set to: ${port}`);
 
 // Register fastify-static for serving static files
 fastify.register(require('@fastify/static'), {
@@ -216,17 +216,21 @@ fastify.setErrorHandler((error, request, reply) => {
   reply.status(500).send({ error: 'Something went wrong!' });
 });
 
-// Start server
-fastify.listen({ port: port, host: '0.0.0.0' }, (err) => {
-  if (err) {
-    console.error('Error starting server:', err);
-    process.exit(1);
-  }
-  console.log(`QR Code Generator server running at http://localhost:${port}`);
-  console.log('Available endpoints:');
-  console.log(`  GET  /                    - HTML form interface`);
-  console.log(`  GET  /qr/:text           - Generate QR code image`);
-  console.log(`  POST /generate           - Generate QR code from form`);
-  console.log(`  GET  /qr-json/:text      - Get QR code as JSON`);
-  console.log(`  POST /qr-advanced        - Advanced QR code generation`);
-});
+// For local development
+if (require.main === module) {
+  // Start server normally when running locally
+  const port = process.env.PORT || 8080;
+  fastify.listen({ port: port, host: '0.0.0.0' }, (err) => {
+    if (err) {
+      console.error('Error starting server:', err);
+      process.exit(1);
+    }
+    console.log(`QR Code Generator server running at http://localhost:${port}`);
+  });
+}
+
+// For Vercel serverless deployment
+module.exports = async (req, res) => {
+  await fastify.ready();
+  fastify.server.emit('request', req, res);
+};
